@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "templatepg.fullname" . }}
+  annotations:
+    reloader.stakater.com/auto: "true"
+    pod-reloader.deckhouse.io/auto: "true"
+  labels:
+    {{- include "templatepg.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "templatepg.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "templatepg.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "templatepg.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.config.create }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "templatepg.fullname" . }}-config
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.env.enable  }}
+          env:
+            {{- toYaml .Values.env.data | nindent 12 }}
+          {{- end }}
+          {{- if .Values.arg.enable }}
+          args:
+            {{- toYaml .Values.arg.data | nindent 12 }}
+          {{- end }}
+          {{- if .Values.command.enable }}
+          command: 
+            {{- toYaml .Values.command.data | nindent 12 }}
+          {{- end }}
+          {{- if .Values.config.create }}
+          volumeMounts:
+            - name: config
+              mountPath: "{{ .Values.config.mountPath }}"
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

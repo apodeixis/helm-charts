@@ -1,0 +1,21 @@
+dependencies:
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.11.1
+- name: nginx-ingress-controller
+  repository: https://charts.bitnami.com/bitnami
+  version: 9.6.1
+- name: frontend
+  repository: ""
+  version: 1.0.0
+- name: backend
+  repository: ""
+  version: 1.0.0
+- name: mailjet
+  repository: ""
+  version: 1.0.0
+- name: notifications-router
+  repository: ""
+  version: 1.0.0
+digest: sha256:91e9606645737dcf9920419dc1b21ce4bd5751ff65b82a78b4bb782e7c88ca31
+generated: "2023-06-15T23:23:37.595206057+03:00"

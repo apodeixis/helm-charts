@@ -1,0 +1,192 @@
+# Default values for template.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/apodeixis/notifications-router-svc
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "your-tag" 
+
+imagePullSecrets: []
+nameOverride: "" 
+fullnameOverride: ""
+
+vpa: false
+
+env:
+  enable: true
+  data:
+    - name: KV_VIPER_FILE
+      value: /config/config.yaml
+
+arg:
+  enable: false
+
+command:
+  enable: true
+  data:
+    - "sh"
+    - "-c"
+    - "notifications-router-svc migrate up && notifications-router-svc run service"
+
+config:
+  create: true
+  createBucket: false
+  name: config.yaml
+  mountPath: "/config"
+
+postgresql:
+  enabled: true
+  commonAnnotations:
+    priorityClassName: production-high
+  fullnameOverride: notifications-router-pg
+  nameOverride: "notifications-router-pg"
+  auth:
+    username: "notifications-router"
+    password: "notifications-router"
+    database: "notifications-router"
+  primary:
+    persistence:
+      size: "64Gi"
+    containerSecurityContext:
+      readOnlyRootFilesystem: true
+    resources:
+      limits:
+        memory: 256Mi
+        cpu: 250m
+      requests:
+        memory: 50Mi
+        cpu: 50m
+    extraVolumes:
+      - name: repmgrconfdir
+        emptyDir:
+          medium: "Memory"
+      - name: confdir
+        emptyDir:
+          medium: "Memory"
+      - name: confddir
+        emptyDir:
+          medium: "Memory"
+      - name: tmp
+        emptyDir:
+          medium: "Memory"
+      - name: tmppostgres
+        emptyDir:
+          medium: "Memory"
+      - name: tmprepmgr
+        emptyDir:
+          medium: "Memory"
+    extraVolumeMounts:
+      - name: tmp
+        mountPath: /tmp
+      - name: confdir
+        mountPath: /opt/bitnami/postgresql/conf
+      - name: confddir
+        mountPath: /opt/bitnami/postgresql/conf/conf.d
+      - name: repmgrconfdir
+        mountPath: /opt/bitnami/repmgr/conf
+      - name: tmppostgres
+        mountPath: /opt/bitnami/postgresql/tmp
+      - name: tmprepmgr
+        mountPath: /opt/bitnami/repmgr/tmp
+    initContainers:
+      - name: prepare-rw-conf
+        image: bitnami/postgresql:15.2.0
+        resources:
+          limits:
+            memory: 256Mi
+            cpu: 250m
+          requests:
+            memory: 50Mi
+            cpu: 50m
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsUser: 1001
+        volumeMounts:
+          - name: confdir
+            mountPath: /rw
+        command:
+          - sh
+          - -eux
+          - -c
+          - |
+            # Prepare rw paths
+            rm -rf /rw/*
+            cp -rT /opt/bitnami/postgresql/conf/ /rw
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+# fsGroup: 2000
+
+securityContext:
+  # capabilities:
+  #   drop:
+  #   - ALL
+  readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  port: 8000
+  regport: 8045
+
+ingress:
+  enabled: false
+  className: ""
+  annotations:
+    certmanager.k8s.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 50m
+    memory: 64Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+tests: false
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

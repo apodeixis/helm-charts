@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "templatepg.fullname" . }}
+  labels:
+    {{- include "templatepg.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+      protocol: TCP
+      name: http
+    - port: {{ .Values.service.regport }}
+      targetPort: {{ .Values.service.regport }}
+      protocol: TCP
+      name: regport
+  selector:
+    {{- include "templatepg.selectorLabels" . | nindent 4 }}

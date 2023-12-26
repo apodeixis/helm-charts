@@ -1,0 +1,299 @@
+global:
+  ProjectName: "apodeixis"
+  email: ""
+  IngressDomain: "stage.apodeixis.io"
+  PullSecrets: "ghcr.io"
+  localstorage: false
+  limits: false
+  istio: false
+  issuers: true
+  frontend: "stage.apodeixis.io"
+
+imagePullSecret:
+  registryURL: "ghcr.io"
+  secretName: "ghcr.io"
+  username: "your-username"
+  password: "your-password"
+  annotations: ""
+
+cert-manager:
+  enabled: false
+  installCRDs: false
+  namespace: "apodeixis"
+  clusterResourceNamespace: "apodeixis"
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+  global:
+    leaderElection:
+      namespace: "apodeixis"
+  resources:
+    limits:
+      cpu: 150m
+      memory: 150Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
+  webhook:
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+    resources:
+      limits:
+        cpu: 110m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 32Mi
+  cainjector:
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+    resources:
+      limits:
+        cpu: 110m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 32Mi
+  startupapicheck:
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+    resources:
+      limits:
+        cpu: 110m
+        memory: 100Mi
+      requests:
+        cpu: 10m
+        memory: 32Mi
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    certmanager.k8s.io/cluster-issuer: letsencrypt
+    cert-manager.io/cluster-issuer: letsencrypt
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      # INFO https://github.com/kubernetes/ingress-nginx/issues/2535
+      # Somehow these headers got duplicated in requests, so unsetting them here
+      more_clear_headers 'Access-Control-Allow-Origin' 'Access-Control-Allow-Credentials';
+      if ($request_method = 'OPTIONS') {
+          add_header 'Access-Control-Allow-Origin' $http_origin always;
+          add_header 'Access-Control-Allow-Credentials' 'true' always;
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, OPTIONS, DELETE' always;
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Signature,Account-Id,Authorization' always;
+          add_header 'Access-Control-Max-Age' 1728000 always;
+          add_header 'Content-Type' 'text/plain charset=UTF-8' always;
+          add_header 'Content-Length' 0 always;
+          return 204;
+      }
+      if ($request_method ~ '(GET|POST|PUT|PATCH|DELETE)') {
+          add_header 'Access-Control-Allow-Origin' $http_origin always;
+          add_header 'Access-Control-Allow-Credentials' 'true' always;
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+          add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Signature,Account-Id,Authorization' always;
+      }
+  host: api.stage.apodeixis.io
+  pathType: ImplementationSpecific
+  tls:
+  - secretName: api-tls
+    hosts:
+    - api.stage.apodeixis.io
+
+nginx-ingress-controller:
+  enabled: true
+  controller:
+    containerSecurityContext:
+      allowPrivilegeEscalation: true
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: false
+    resources:
+      limits:
+        cpu: 150m
+        memory: 150Mi
+      requests:
+        cpu: 100m
+        memory: 90Mi
+    admissionWebhooks:
+      annotations:
+        ignore-check.kube-linter.io/no-read-only-rootfs: "This deployment needs write access to root filesystem"
+      createSecretJob:
+        resources:
+          limits:
+            cpu: 10m
+            memory: 20Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
+      patchWebhookJob:
+        resources:
+          limits:
+            cpu: 10m
+            memory: 20Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
+  defaultBackend:
+    securityContext:
+      runAsUser: 0
+      fsGroup: 0
+    resources:
+      limits:
+        cpu: 100m
+        memory: 100Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+
+client:
+  enabled: true
+  imagePullSecrets:
+  - name: "ghcr.io"
+  image:
+    repository: ghcr.io/apodeixis/client
+    tag: "your-tag"
+  ingress:
+    enabled: true
+    annotations:
+      certmanager.k8s.io/cluster-issuer: letsencrypt
+      cert-manager.io/cluster-issuer: letsencrypt
+
+backend:
+  enabled: true
+  imagePullSecrets:
+  - name: "ghcr.io"
+  image:
+    repository: ghcr.io/apodeixis/backend
+    tag: "your-tag"
+  config:
+    data:
+      log:
+        level: debug
+        disable_sentry: true
+
+      db:
+        url: postgres://backend:backend@backend-pg/backend?sslmode=disable
+
+      listener:
+        addr: :8000
+
+      jwt:
+        secret: your-secret
+        refresh_life: 6h
+        access_life: 10m5s
+
+      refresh_cookie:
+        name: "refreshCookie"
+        path: "/auth/refresh"
+        http_only: true
+        secure: true
+        
+      oauth2_google:
+        redirect_url: https://stage.apodeixis.io/auth/oauth2
+        client_id: your-id
+        client_secret: your-secret
+        state_secret: your-secret
+        state_life: 10m5s
+
+      email_verification:
+        secret: your-secret
+        token_life: 10m5s
+
+      password_recovery:
+        secret: your-secret
+        token_life: 10m5s
+
+      web:
+        confirmation_endpoint: https://stage.apodeixis.io/auth/sign-up/handler
+        recovery_endpoint: https://stage.apodeixis.io/auth/restore-password/handler
+
+      notificator:
+        disabled: false
+        endpoint: http://apodeixis-notifications-router:8000
+
+      mumbai:
+        client_url: "https://polygon-mumbai.infura.io/v3/your-api-key"
+        contract_address: "your-contract-address"
+        sender_private_key: "your-pk"
+
+notifications-router:
+  enabled: true
+  imagePullSecrets:
+  - name: "ghcr.io"
+  image:
+    repository: ghcr.io/apodeixis/notifications-router-svc
+    tag: "your-tag"
+  config:
+    data:
+      log:
+        level: debug
+        disable_sentry: true
+
+      notificator:
+        default_locale: en # Optional
+        default_channels_priority:
+          - email
+
+      db:
+        url: "postgres://notifications-router:notifications-router@notifications-router-pg/notifications-router?sslmode=disable"
+
+      listener:
+        addr: :8000
+
+      registration_api:
+        addr: :8045
+
+      s3:
+        access_key: "your-access-key"
+        secret_key: "your-secret-key"
+        endpoint: "your-endpoint"
+        region: "your-region" # for non-aws endpoints might be empty
+        bucket: "your-bucket"
+
+mailjet:
+  enabled: true
+  imagePullSecrets:
+  - name: "ghcr.io"
+  image:
+    repository: ghcr.io/apodeixis/mailjet-svc
+    tag: "your-tag"
+  config:
+    data:
+      log:
+        level: debug
+        disable_sentry: true
+
+      listener:
+        addr: :8000
+
+      mailjet:
+        public_api_key: your-public-key
+        private_api_key: your-private-key
+        from_email: your-email
+
+      notifications_router:
+        register_endpoint: http://apodeixis-notifications-router:8045
+        upstream: http://apodeixis-mailjet:8000/notifications
+        channel: email

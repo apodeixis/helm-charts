@@ -1,0 +1,32 @@
+apiVersion: v2
+name: apodeixis
+description: A Helm chart to install Apodeixis
+home: https://stage.apodeixis.io/
+sources:
+- https://github.com/apodeixis/helm-charts
+annotations:
+  licenses: MIT
+type: application
+version: 1.0.0
+appVersion: 1.0.0
+dependencies:
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: 1.11.1
+  condition: cert-manager.enabled
+- name: nginx-ingress-controller
+  repository: https://charts.bitnami.com/bitnami
+  version: 9.6.1
+  condition: nginx-ingress-controller.enabled
+- name: client
+  version: 1.0.0
+  condition: client.enabled
+- name: backend
+  version: 1.0.0
+  condition: backend.enabled
+- name: mailjet
+  version: 1.0.0
+  condition: mailjet.enabled
+- name: notifications-router
+  version: 1.0.0
+  condition: notifications-router.enabled
